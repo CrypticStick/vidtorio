@@ -1,11 +1,10 @@
 #include <assert.h>
 #include <SDL2/SDL_image.h>
 #include <dirent.h>
-#include <my_string.h>
-#include <my_math.h>
+#include <float.h>
+#include "my_math.h"
 #include "display_renderer.h"
 #include "factorio_ui.h"
-#include "colors.h"
 
 Factorio_Icon *icon_list = NULL;
 int16_t icon_list_len = 0;
@@ -147,7 +146,7 @@ void Free_Icons() {
 
 int16_t Get_Icon_By_Color(Oklab oklab) {
     int16_t closest_idx = 0;
-    float closest_distance = MAXFLOAT;
+    float closest_distance = FLT_MAX;
     for (int16_t idx = 0; idx < icon_list_len; ++idx) {
         float cur_distance = Oklab_Dist(icon_list[idx].avg_oklab, oklab);
         if (cur_distance < closest_distance) {
