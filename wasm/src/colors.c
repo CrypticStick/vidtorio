@@ -7,6 +7,16 @@ RGB Get_RGB(uint8_t r, uint8_t g, uint8_t b) {
     return rgb;
 }
 
+RGBA Get_RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    RGBA rgba = { r, g, b, a };
+    return rgba;
+}
+
+RGBA RGB_To_RGBA(RGB rgb) {
+    RGBA rgba = { rgb.r, rgb.g, rgb.b, 255 };
+    return rgba;
+}
+
 float _sRGB_Nonlinear_Transform(float x)
 {
     if (x >= 0.0031308f)

@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <SDL2/SDL.h>
 #include "arena.h"
 #include "colors.h"
 #include "my_string.h"
@@ -11,28 +10,19 @@
 typedef struct Factorio_Icon_ {
     string name;
     Oklab avg_oklab;
-    SDL_Texture *texture;
+    GLuint texture_id;
 } Factorio_Icon;
 
-typedef struct Factorio_Icon_Frame_ {
-    int16_t *icon_ids;
-    int width;
-    int height;
-    int spacing;
-} Factorio_Icon_Frame;
+// typedef struct Factorio_Icon_Frame_ {
+//     AVFrame *frame;
+//     int icon_spacing;
+// } Factorio_Icon_Frame;
 
-typedef struct Factorio_Icon_Video_ {
-    Factorio_Icon_Frame *frames;
-    int num_frames;
-    int ticks_per_frame;
-} Factorio_Icon_Video;
-
-typedef enum Display_Render_Flags_ {
-    DISPLAY_RENDER_DEFAULT = 0x00,
-    DISPLAY_RENDER_BINARY = 0x01,
-    DISPLAY_RENDER_DITHERING = 0x02,
-    DISPLAY_RENDER_TRANSPARENT = 0x04
-} Display_Render_Flags;
+// typedef struct Factorio_Icon_Video_ {
+//     Factorio_Icon_Frame *frames;
+//     int num_frames;
+//     int ticks_per_frame;
+// } Factorio_Icon_Video;
 
 typedef enum Factorio_Icon_Resolution_ {
     RES_VERY_LARGE = 0,
@@ -41,16 +31,31 @@ typedef enum Factorio_Icon_Resolution_ {
     RES_SMALL = 3
 } Factorio_Icon_Resolution;
 
+typedef struct Icon_Rect
+{
+    int x, y;
+    int w, h;
+} Icon_Rect;
+
 /**
  * Gets the bounding box for an icon based on the desired resolution.
  */
-SDL_Rect Get_Icon_Rect(Factorio_Icon_Resolution resolution);
+Icon_Rect Get_Icon_Rect(Factorio_Icon_Resolution resolution);
 
 /**
  * Loads Factorio icons from the local file system.
- * \returns true on success or false on failure
+ * \returns True on success or false on failure
  */
 bool Load_Icons(arena *a);
+
+/**
+ * @brief Loads a specific Factorio icon (as a 120x64 PNG image) from the local file system.
+ * 
+ * @param filename The icon to load
+ * 
+ * \returns True on success or false on failure
+ */
+bool Load_Icon(char *filename);
 
 /**
  * Frees all resources from the saved icon list.
@@ -80,6 +85,12 @@ int16_t Get_Icon_By_Value(Oklab oklab);
 Factorio_Icon *Get_Icon(int16_t icon_id);
 
 /**
+ * Generates a color palette image (palette.png) for the media processor to use.
+ * \returns true on success or false on failure
+ */
+bool Generate_Palette_Image();
+
+/**
  * Generates a row-wise array of Factorio icons from the provided frame data.
  * \param data A stream of pixel data (in 32-bit RGBA format)
  * \param width The width (in pixels) of the provided image
@@ -88,7 +99,7 @@ Factorio_Icon *Get_Icon(int16_t icon_id);
  * \param arena The arena for allocating necessary data structures
  * \returns A row-wise array of Factorio icon ids.
  */
-Factorio_Icon_Frame Generate_Icon_Frame(RGBA* data, int width, int height, int spacing, Display_Render_Flags fmt, arena *a);
+// Factorio_Icon_Frame Generate_Icon_Frame(RGBA* data, int width, int height, int spacing, Image_Format_Flags fmt, arena *a);
 
 /**
  * Generates an array of Factorio icon frames from the provided frame data.
@@ -101,6 +112,6 @@ Factorio_Icon_Frame Generate_Icon_Frame(RGBA* data, int width, int height, int s
  * \param arena The arena for allocating necessary data structures
  * \returns A row-wise array of Factorio icon ids.
  */
-Factorio_Icon_Video Generate_Icon_Video(RGBA* data, int width, int height, int spacing, int num_frames, int ticks_per_frame, Display_Render_Flags fmt, arena *a);
+// Factorio_Icon_Video Generate_Icon_Video(RGBA* data, int width, int height, int spacing, int num_frames, int ticks_per_frame, Image_Format_Flags fmt, arena *a);
 
 #endif // FACTORIO_UI_H_

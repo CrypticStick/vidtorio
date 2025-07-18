@@ -14,13 +14,16 @@
     <div class="my-auto d-flex flex-column align-items-center">
       <h1 class="mx-4 mt-3 mb-0">Factorio Display Generator</h1>
       <section class="tracer m-3 mb-5 mb-sm-4 d-flex flex-column align-items-center justify-content-center">
-        <div class="canvas-container d-flex justify-content-center w-100 mb-2">
-          <div id="canvas-c1" class="canvas-element d-flex align-items-center p-2 me-md-1">
-            <canvas id="display-frame" class="m-0" width="512" height="512"></canvas>
-          </div>
-          <div id="canvas-c2" class="canvas-element d-flex align-items-center p-2 ms-md-1">
-            <canvas id="canvas" class="m-0" width="512" height="512"></canvas>
-          </div>
+        <div id="input-media">
+            <img id="input-image" class="on-image" style="display:none;">
+            <video id="input-video" class="on-video" controls style="display:none;"></video>
+            <audio id="input-audio" class="on-audio" controls style="display:none;"></audio>
+        </div>
+        <div id="output-media">
+            <canvas id="canvas" class="on-image m-0" width="512" height="512"></canvas>
+            <img id="output-image" class="on-image" style="display:none;">
+            <video id="output-video" class="on-video" controls style="display:none;"></video>
+            <audio id="output-audio" class="on-audio" controls style="display:none;"></audio>
         </div>
         <form id="generate-form" novalidate>
           <fieldset id="generate-fieldset" class="row g-3 p-2">

@@ -2,7 +2,6 @@
 #define COLORS_H_
 
 #include <stdint.h>
-#include <SDL2/SDL.h>
 
 #define OklabA_As_Oklab(c)  (*(Oklab *)&c)
 #define RGBA_As_RGB(c)      (*(RGB *)&c)
@@ -40,6 +39,10 @@ typedef struct OklabA_ {
 } OklabA;
 
 RGB Get_RGB(uint8_t r, uint8_t g, uint8_t b);
+
+RGBA Get_RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
+RGBA RGB_To_RGBA(RGB rgb);
 
 Linear_RGB RGB_To_Linear_RGB(RGB rgb);
 

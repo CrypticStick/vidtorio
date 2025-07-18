@@ -1,36 +1,38 @@
 #include <stdio.h>
-#include "blueprint_generator.h"
+#include "blueprint_encoder.h"
 #include "display_renderer.h"
 #include "factorio_ui.h"
 #include "arena.h"
 
+// Results from the most recently processed media (contains null-terminators)
+static string blueprint_string;
+static string preview_filepath;
+
 // Global memory reference
 static arena g_arena;
 
-// Processing memory reference (resets to the global reference on Process_Init)
-static arena proc_arena;
-
-// Compressed blueprint string (for copying to javascript)
-static string_buffer encoded_blueprint;
+static const char src_filename_cstr[MAX_FILE_LEN + 1];
 
 int main() {
     // Allocate 64 MB for general use.
-    // Note that SDL may allocate additional memory,
+    // Note that SDL2 and FFmpeg may allocate additional memory,
     // but this will not affect the existing arena.
     g_arena = arena_new(1<<26);
 
-    // Use 2 MB for the blueprint string output
-    encoded_blueprint = string_buffer_new(1<<21, &g_arena);
-
     const char *error = Renderer_Init();
     if (error) {
-        printf("Error: %s\n", error);
+        fprintf(stderr, "Error: %s\n", error);
         return 1;
     }
 
     // Use additional space necessary to prepare all icon data
     if (!Load_Icons(&g_arena)) {
-        printf("Error: failed to load game icons\n");
+        fprintf(stderr, "Error: failed to load game icons\n");
+        return 1;
+    }
+
+    if (!Generate_Palette_Image()) {
+        fprintf(stderr, "Error: failed to generate default color palette\n");
         return 1;
     }
 
@@ -38,45 +40,114 @@ int main() {
 }
 
 /**
- * Allocates space for the incoming frame data and returns a pointer to the new buffer.
+ * @brief Set the image format configuration.
  * 
- * Do not use the global arena until the incoming pixel data has been fully processed!
- * \param num_pixels The total number of pixels in the data stream (in 32-bit RGBA format)
- * \returns A pointer to the newly created buffer
+ * @param width The target image width (in number of icons)
+ * @param height The target image height (in number of icons)
+ * @param tile_spacing The amount of spacing between display panels (in number of tiles)
+ * @param format_flags The target image format flags
+ * @param icon_resolution The target image icon resolution
  */
-uint32_t *Process_Init(ptrdiff_t num_pixels) {
-    // Reset processing arena to the global arena state
-    proc_arena = g_arena;
-    return a_malloc(&proc_arena, uint32_t, num_pixels, NO_ZERO);
+void Set_Image_Config(int width, int height, int tile_spacing, Image_Format_Flags format_flags, Factorio_Icon_Resolution icon_resolution) {
+    media_config.image_config.width = width;
+    media_config.image_config.height = height;
+    media_config.image_config.tile_spacing = tile_spacing;
+    media_config.image_config.format_flags = format_flags;
+    media_config.image_config.icon_resolution = icon_resolution;
 }
 
 /**
- * Generates an encoded blueprint string from frame data and renders the resulting map view.
- * \param data A stream of pixel data (in 32-bit RGBA format)
- * \param width The width (in pixels) of the provided image
- * \param height The height (in pixels) of the provided image
- * \param res The target resolution for rendering the display icons
- * \param fmt The target rendering flags, or 0 for none
- * \returns An encoded blueprint string, or NULL on failure
+ * @brief Set the video format configuration.
+ * 
+ * @param framerate The target video framerate
  */
-uint8_t *Process_Image(RGBA* data, int width, int height, int spacing, Factorio_Icon_Resolution res, Display_Render_Flags fmt) {
-    // Copy processing arena to create a temporary arena
-    arena scratch = proc_arena;
+void Set_Video_Config(int framerate) {
+    media_config.video_config.framerate = framerate;
+}
 
-    // Generate and render the icon frame
-    Factorio_Icon_Frame icon_frame = Generate_Icon_Frame(data, width, height, spacing, fmt, &scratch);
-    Render_Icon_Frame(icon_frame, res);
+// /**
+//  * @brief Set the audio format configuration.
+//  */
+// void Set_Audio_Config() {
+//     media_config.audio_config;
+// }
 
-    // Generate the blueprint
-    blueprint frame_blueprint = Generate_Image_Blueprint(icon_frame, &scratch);
+/**
+ * @brief Gets a pointer to a string that can hold 255 characters.
+ * Used to set the input filename from javascript.
+ * 
+ * @returns A pointer to the input filename string
+ */
+char *Get_Input_Filename() {
+    return (char *)src_filename_cstr;
+}
 
-    // Generate the compressed blueprint string
-    string_buffer_clear(&encoded_blueprint);
-    Encode_Blueprint(frame_blueprint, &encoded_blueprint, scratch);
-    if (string_buffer_terminate(&encoded_blueprint)) {
-        return encoded_blueprint.str.data;
-    } else {
-        printf("Error: the encoded blueprint is too large for the string buffer\n");
-        return NULL;
+/**
+ * @brief Determines the media format of the specified file and primes the media processor accordingly.
+ * 
+ * @returns The detected media format
+ */
+Media_Type_Flags Load_Media() {
+    return load_media((char *)src_filename_cstr);
+}
+
+/**
+ * @brief Generates an encoded blueprint string for the current media and renders an audiovisual preview.
+ * 
+ * @returns Whether the process completed successfully
+ * 
+ * @note Make sure `Load_Media` is called before attempting to process a file.
+ */
+bool Process_Media() {
+    arena l_arena = g_arena;
+
+    if (media_loaded_type == NONE_TYPE) {
+        fprintf(stderr, "A valid media file has not been loaded.\n");
+        goto error;
     }
+
+    Blueprint_Encoder_Init(&l_arena);
+    string preview_filepath_temp = process_media(Blueprint_Encoder_Add_Frame);
+    string blueprint_string_temp = Blueprint_Encoder_Finish(true);
+
+    if (preview_filepath_temp.len <= 0) {
+        fprintf(stderr, "Failed to process media.\n");
+        goto error;
+    }
+   
+    if (blueprint_string_temp.len <= 0) {
+        fprintf(stderr, "The encoded blueprint is too large for the string buffer.\n");
+        goto error;
+    }
+
+    // Success; save output strings
+    blueprint_string = blueprint_string_temp;
+    preview_filepath = preview_filepath_temp;
+    return true;
+error:
+    blueprint_string = string_cast(NULL);
+    preview_filepath = string_cast(NULL);
+    return false;
+}
+
+/**
+ * @brief Gets the most recently generated blueprint string.
+ * 
+ * @returns the most recent blueprint string
+ * 
+ * @note May be null if an error occurred while generating.
+ */
+char *Get_Blueprint_String() {
+    return blueprint_string.data;
+}
+
+/**
+ * @brief Gets the most recently generated preview filepath.
+ * 
+ * @returns the most recent preview filepath
+ * 
+ * @note May be null if an error occurred while generating.
+ */
+char *Get_Preview_Filepath() {
+    return preview_filepath.data;
 }
